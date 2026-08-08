@@ -17,6 +17,8 @@ runbooks, then optionally produces a local Ollama summary.
 
 See [the end-to-end flow diagram](docs/architecture.md).
 
+![Local AI Observability Lab architecture sketch](docs/ai-observability-lab-pencil-sketch.png)
+
 ## Start
 
 ```powershell
