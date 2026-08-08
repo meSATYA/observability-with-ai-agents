@@ -1,7 +1,8 @@
 # Architecture and agent workflow
 
 The UI can activate one failure mode per service and multiple services at once,
-then explicitly save a reviewed report as incident memory.
+ask one of several question presets, and explicitly save a reviewed report from
+the dedicated Incident memory block.
 The Agent API clears unselected modes, activates selected modes, and generates
 traffic both through the normal request chain and directly to selected services.
 This produces evidence even when an upstream failure prevents normal propagation.
@@ -28,17 +29,19 @@ flowchart TB
     PR --> VM["VictoriaMetrics\nremote-write store"]
     TR & LO & PR & VM --> GF["Grafana\nExplore + dashboard"]
 
-    UI --> Q["Question preset"]
-    Q --> SUP["Supervisor"]
+    UI --> QUESTION["Question preset"]
+    QUESTION --> SUP["Supervisor"]
     SUP --> MA["Metrics query\nPrometheus"]
     SUP --> LA["Logs query\nLoki"]
     SUP --> TA["Traces query\nTempo"]
     MA & LA & TA --> CA["Correlation"]
     CA --> KA["Knowledge\nlocal runbook + similar incidents"]
-    KA --> Q[("Qdrant\napproved incident memory")]
+    KA --> QDRANT[("Qdrant\napproved incident memory")]
     CA & KA --> RCA["Evidence-based root cause"]
     RCA --> RA["Safety-gated remediation advice"]
     RA --> REP["Human-readable report"]
+    REP --> MEMORY["Incident memory block\nexplicit approval"]
+    MEMORY --> QDRANT
     OL["Ollama (optional)\nsummary only"] --> RCA
 ```
 

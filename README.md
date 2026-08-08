@@ -41,8 +41,9 @@ Local endpoints:
 3. Wait 10 seconds for telemetry batching.
 4. Use any question preset: checkout failure, dependencies, classification,
    safe mitigation, or correlated evidence.
-5. Review the report, then click **Save reviewed report to memory** to approve
-   persistence in the local Qdrant incident-memory collection.
+5. Review the report in the **Incident memory** block, then click **Save
+   reviewed report to memory** to approve persistence in the local Qdrant
+   incident-memory collection.
 6. Click **Clear all failures** when finished.
 
 Available fault modes:
@@ -81,6 +82,10 @@ ENABLE_LLM_SUMMARY=true
 
 Recreate `agent-api` after changing `.env`. The LLM output appears only as
 `local_llm_summary`; the evidence-based `root_cause` field is independent.
+
+The memory API is `POST /api/memory/incidents`; it rejects writes unless the
+request includes `approved: true`. Stored reports are embedded locally and
+retrieved by similarity during later investigations.
 
 ## Troubleshooting telemetry
 
