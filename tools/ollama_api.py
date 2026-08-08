@@ -17,7 +17,7 @@ def summarize(evidence, question=""):
     synthesis_terms = ("why", "explain", "summarize", "root cause", "mitigation", "recommend", "assess")
     if not any(term in q for term in synthesis_terms): return None
     try:
-        timeout = float(os.getenv("OLLAMA_TIMEOUT_SECONDS", "120"))
+        timeout = float(os.getenv("OLLAMA_TIMEOUT_SECONDS", "300"))
         context_size = int(os.getenv("OLLAMA_NUM_CTX", "4096"))
         base_url = os.environ["OLLAMA_BASE_URL"].removesuffix("/v1")
         response = requests.post(base_url + "/api/chat", json={
