@@ -1,4 +1,4 @@
-import json, os
+import json, os, requests
 
 def _compact_evidence(evidence, limit=12000):
     """Keep the summary prompt bounded; raw logs/traces can be enormous."""
@@ -12,11 +12,21 @@ def summarize(evidence):
     if os.getenv("ENABLE_LLM_SUMMARY", "false").lower() != "true": return None
     if not os.getenv("OLLAMA_MODEL"): return None
     try:
-        from openai import OpenAI
         timeout = float(os.getenv("OLLAMA_TIMEOUT_SECONDS", "60"))
         context_size = int(os.getenv("OLLAMA_NUM_CTX", "4096"))
-        c=OpenAI(base_url=os.environ["OLLAMA_BASE_URL"],api_key="local", timeout=timeout, max_retries=0)
-        return c.chat.completions.create(model=os.environ["OLLAMA_MODEL"],messages=[{"role":"system","content":"Act as a cautious SRE. Use only supplied evidence; do not recommend unapproved changes."},{"role":"user","content":_compact_evidence(evidence)}], max_tokens=400, extra_body={"options": {"num_ctx": context_size}}).choices[0].message.content
+        base_url = os.environ["OLLAMA_BASE_URL"].removesuffix("/v1")
+        response = requests.post(base_url + "/api/chat", json={
+            "model": os.environ["OLLAMA_MODEL"],
+            "messages": [
+                {"role": "system", "content": "Act as a cautious SRE. Use only supplied evidence; do not recommend unapproved changes."},
+                {"role": "user", "content": _compact_evidence(evidence)},
+            ],
+            "stream": False,
+            "keep_alive": "5m",
+            "options": {"num_ctx": context_size, "num_predict": 400},
+        }, timeout=timeout)
+        response.raise_for_status()
+        return response.json().get("message", {}).get("content")
     except Exception:
         # LLM narration is optional. Never allow an infrastructure/model error to
         # become an incident finding or to overwrite evidence-based root cause.
