@@ -1,6 +1,7 @@
 # Architecture and agent workflow
 
-The UI can activate one failure mode per service and multiple services at once.
+The UI can activate one failure mode per service and multiple services at once,
+then explicitly save a reviewed report as incident memory.
 The Agent API clears unselected modes, activates selected modes, and generates
 traffic both through the normal request chain and directly to selected services.
 This produces evidence even when an upstream failure prevents normal propagation.
@@ -33,7 +34,8 @@ flowchart TB
     SUP --> LA["Logs query\nLoki"]
     SUP --> TA["Traces query\nTempo"]
     MA & LA & TA --> CA["Correlation"]
-    CA --> KA["Knowledge\nlocal Markdown runbook\n(Qdrant extension point)"]
+    CA --> KA["Knowledge\nlocal runbook + similar incidents"]
+    KA --> Q[("Qdrant\napproved incident memory")]
     CA & KA --> RCA["Evidence-based root cause"]
     RCA --> RA["Safety-gated remediation advice"]
     RA --> REP["Human-readable report"]

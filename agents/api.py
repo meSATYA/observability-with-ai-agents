@@ -1,8 +1,9 @@
-import os, requests
+import os, requests, uuid
 from concurrent.futures import ThreadPoolExecutor
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
+from tools import qdrant_api
 from workflow.graph import build_graph
 app=FastAPI(title="Local SRE multi-agent API"); graph=build_graph()
 app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:5173"], allow_methods=["*"], allow_headers=["*"])
@@ -46,4 +47,19 @@ def inject_failure(state:str):
     if state != "off": generate_traffic(("payment",))
     return result
 @app.post("/api/investigations")
-def investigate(req:Investigation): return graph.invoke({"question":req.question})["report"]
+def investigate(req:Investigation):
+    return graph.invoke({"incident_id": str(uuid.uuid4()), "question": req.question})["report"]
+
+class MemoryApproval(BaseModel):
+    report: dict
+    approved: bool = False
+
+@app.post("/api/memory/incidents")
+def save_incident_memory(request: MemoryApproval):
+    if not request.approved:
+        return {"saved": False, "error": "Explicit approval is required to write incident memory."}
+    try:
+        incident_id = qdrant_api.save_incident(request.report)
+        return {"saved": True, "incident_id": incident_id}
+    except Exception as exc:
+        return {"saved": False, "error": f"Incident memory unavailable: {exc}"}

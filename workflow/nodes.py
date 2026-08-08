@@ -4,9 +4,11 @@ def metrics(s): return {"metrics":{"error_rate":prometheus_api.query('sum by (se
 def logs(s): return {"logs":loki_api.query('{service_name=~"frontend|gateway|checkout|inventory|payment"} |= "error"')}
 def traces(s): return {"traces":tempo_api.search()}
 def correlate(s): return {"correlation":{"service_path":"frontend → gateway → checkout → inventory → payment","signals":"Payment errors are matched by time and trace IDs across downstream failures."}}
-def knowledge(s): return {"knowledge":qdrant_api.runbook(s.get("logs", ""))}
+def knowledge(s):
+    context = f"{s.get('question', '')} {s.get('logs', '')} {s.get('correlation', '')}"
+    return {"knowledge": qdrant_api.runbook(s.get("logs", "")), "similar_incidents": qdrant_api.search_similar(context)}
 def rootcause(s):
-    evidence={k:s.get(k) for k in ("metrics","logs","traces","correlation","knowledge")}
+    evidence={k:s.get(k) for k in ("metrics","logs","traces","correlation","knowledge","similar_incidents")}
     # The root-cause agent is evidence-first and remains useful with Ollama off.
     log_text = str(s.get("logs", ""))
     findings = []
@@ -36,4 +38,4 @@ def remediate(s):
     if "Card declined" in root: actions.append("Validate decline codes; do not automatically retry a hard decline.")
     actions.append("Clear injected faults and validate recovery after mitigation.")
     return {"remediation": actions}
-def report(s): return {"report":{"question":s["question"],"root_cause":s["root_cause"],"local_llm_summary":s.get("llm_summary"),"evidence":{k:s.get(k) for k in ("metrics","logs","traces","correlation")},"remediation":s["remediation"],"safety":"Read-only investigation; no remediation is executed."}}
+def report(s): return {"report":{"incident_id":s.get("incident_id"),"question":s["question"],"root_cause":s["root_cause"],"local_llm_summary":s.get("llm_summary"),"similar_incidents":s.get("similar_incidents",[]),"evidence":{k:s.get(k) for k in ("metrics","logs","traces","correlation")},"remediation":s["remediation"],"safety":"Read-only investigation; memory writes require explicit approval; no remediation is executed."}}

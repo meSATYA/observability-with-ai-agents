@@ -41,7 +41,9 @@ Local endpoints:
 3. Wait 10 seconds for telemetry batching.
 4. Use any question preset: checkout failure, dependencies, classification,
    safe mitigation, or correlated evidence.
-5. Click **Clear all failures** when finished.
+5. Review the report, then click **Save reviewed report to memory** to approve
+   persistence in the local Qdrant incident-memory collection.
+6. Click **Clear all failures** when finished.
 
 Available fault modes:
 
@@ -59,11 +61,12 @@ search Tempo for error traces.
 
 ## Investigation behavior
 
-The workflow gathers metrics, logs, traces, correlation context, and a relevant
-local runbook. Each backend query is bounded to three seconds and returns
-partial evidence if a backend is unavailable. Root-cause detection matches the
-current error-log signatures; an unavailable observability backend is reported
-as evidence, rather than hanging the API.
+The workflow gathers metrics, logs, traces, correlation context, a relevant
+local runbook, and similar approved incidents from Qdrant. Each backend query
+is bounded to three seconds and returns partial evidence if a backend is
+unavailable. Root-cause detection matches the current error-log signatures;
+an unavailable observability backend is reported as evidence, rather than
+hanging the API. Incident memory is never written without explicit approval.
 
 Ollama is optional and never chooses the root cause. To enable an additional
 local language-model summary (bounded to 12 seconds), pull the model and set:
@@ -97,7 +100,7 @@ batches followed by exporter errors identify the affected backend.
 - `otel/`: Collector receive, processing, export, health, and debug setup.
 - `grafana/`, `victoriametrics/`, `tempo/`, `loki/`, `prometheus/`: local observability stack.
 - `agents/`, `workflow/`, `tools/`: simulation API, LangGraph workflow, and bounded query clients.
-- `runbooks/`, `vectorstore/`: local Markdown knowledge sources; Qdrant is reserved as the next retrieval backend.
+- `runbooks/`, `vectorstore/`: local Markdown knowledge and Qdrant incident-memory storage.
 - `ui/`, `faults/`, `tests/`, `docs/`: exercise controls, scripted demo, tests, and architecture documentation.
 
 ## Safety boundaries
