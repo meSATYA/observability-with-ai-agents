@@ -42,7 +42,7 @@ flowchart TB
     RA --> REP["Human-readable report"]
     REP --> MEMORY["Incident memory block\nexplicit approval"]
     MEMORY --> QDRANT
-    OL["Ollama (optional)\nsummary only"] --> RCA
+    OL["llama.cpp (optional)\nsummary only"] --> RCA
 ```
 
 ## Execution boundaries
@@ -50,8 +50,8 @@ flowchart TB
 - Each query client has a three-second timeout and returns partial evidence on
   backend errors.
 - Root-cause detection uses known fault signatures in current logs; it does not
-  depend on Ollama.
-- Ollama, when enabled, receives a compact evidence prompt, requests a
-  4096-token context by default, is capped at 300 seconds, and contributes only the
+  depend on llama.cpp.
+- llama.cpp, when enabled, receives a compact evidence prompt, requests a
+  2048-token context by default, is capped at 300 seconds, and contributes only the
   `local_llm_summary` report field.
 - No remediation is executed by the agent.

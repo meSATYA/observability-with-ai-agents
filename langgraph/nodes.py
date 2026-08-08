@@ -1,4 +1,4 @@
-from tools import prometheus_api, loki_api, tempo_api, qdrant_api, ollama_api
+from tools import prometheus_api, loki_api, tempo_api, qdrant_api, llama_api
 def supervisor(s): return {"question":s.get("question","Why is checkout failing?")}
 def metrics(s): return {"metrics":{"error_rate":prometheus_api.query('sum(rate(checkout_stage_total{service="payment",outcome="error"}[5m]))'),"latency":prometheus_api.query('histogram_quantile(0.95,sum(rate(checkout_stage_duration_seconds_bucket{service="payment"}[5m])) by (le))')}}
 def logs(s): return {"logs":loki_api.query('{service_name="payment"} |= "error"')}
@@ -10,7 +10,7 @@ def knowledge(s): return {"knowledge":qdrant_api.runbook()}
 def rootcause(s):
     evidence={k:s.get(k) for k in ("metrics","logs","traces","correlation","knowledge")}
     result={"root_cause":"Probable payment PostgreSQL connection-pool exhaustion. Confirm using the linked error traces and pool metrics."}
-    summary=ollama_api.summarize(evidence)
+    summary=llama_api.summarize(evidence)
     if summary: result["llm_summary"]=summary
     return result
 def remediate(s): return {"remediation":["Verify payment database pool saturation and connection leaks.","Temporarily reduce checkout concurrency or increase pool capacity only with change approval.","After mitigation, disable the injected fault and validate error rate recovery."]}

@@ -79,12 +79,23 @@ services:
     image: qdrant/qdrant:v1.13.2
     ports: ["6333:6333"]
     volumes: ["./vectorstore:/qdrant/storage"]
-  ollama:
-    image: ollama/ollama:0.5.7
-    environment:
-      OLLAMA_CONTEXT_LENGTH: ${OLLAMA_NUM_CTX:-4096}
-    ports: ["11434:11434"]
-    volumes: ["ollama:/root/.ollama"]
+  llama-cpp:
+    image: ghcr.io/ggml-org/llama.cpp:server
+    command:
+      - -hf
+      - ${LLAMA_HF_REPO:-ggml-org/gemma-3-1b-it-GGUF}
+      - --alias
+      - ${LLAMA_MODEL:-local-model}
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8080"
+      - -c
+      - "${LLAMA_NUM_CTX:-2048}"
+      - -n
+      - "${LLAMA_NUM_PREDICT:-120}"
+    ports: ["11434:8080"]
+    volumes: ["llama-models:/root/.cache/llama.cpp"]
   agent-api:
     build: {context: ., dockerfile: agents/Dockerfile}
     ports: ["8081:8081"]
@@ -93,20 +104,20 @@ services:
       LOKI_URL: http://loki:3100
       TEMPO_URL: http://tempo:3200
       QDRANT_URL: http://qdrant:6333
-      OLLAMA_BASE_URL: http://ollama:11434/v1
-      OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.2:3b}
+      LLAMA_BASE_URL: http://llama-cpp:8080/v1
+      LLAMA_MODEL: ${LLAMA_MODEL:-local-model}
       ENABLE_LLM_SUMMARY: ${ENABLE_LLM_SUMMARY:-false}
-      OLLAMA_TIMEOUT_SECONDS: ${OLLAMA_TIMEOUT_SECONDS:-300}
-      OLLAMA_NUM_CTX: ${OLLAMA_NUM_CTX:-4096}
-      OLLAMA_NUM_PREDICT: ${OLLAMA_NUM_PREDICT:-120}
+      LLAMA_TIMEOUT_SECONDS: ${LLAMA_TIMEOUT_SECONDS:-300}
+      LLAMA_NUM_CTX: ${LLAMA_NUM_CTX:-2048}
+      LLAMA_NUM_PREDICT: ${LLAMA_NUM_PREDICT:-120}
       PAYMENT_CONTROL_URL: http://payment:8000
       FRONTEND_URL: http://frontend:8000
-    depends_on: [prometheus, loki, tempo, qdrant, ollama, payment]
+    depends_on: [prometheus, loki, tempo, qdrant, llama-cpp, payment]
   ui:
     image: nginx:1.27-alpine
     ports: ["5173:80"]
     volumes: ["./ui:/usr/share/nginx/html:ro"]
     depends_on: [agent-api]
 volumes:
-  ollama:
+  llama-models:
   victoriametrics-data:

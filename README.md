@@ -13,7 +13,7 @@ Each service exports OpenTelemetry traces, metrics, and logs to the Collector.
 The Collector sends traces to Tempo, logs to Loki, and metrics to Prometheus;
 Prometheus remote-writes metrics to VictoriaMetrics. Grafana is provisioned with
 all four data sources. The agent queries Prometheus, Loki, Tempo, and local
-runbooks, then optionally produces a local Ollama summary.
+runbooks, then optionally produces a local llama.cpp summary.
 
 See [the end-to-end flow diagram](docs/architecture.md).
 
@@ -71,27 +71,31 @@ unavailable. Root-cause detection matches the current error-log signatures;
 an unavailable observability backend is reported as evidence, rather than
 hanging the API. Incident memory is never written without explicit approval.
 
-Ollama is optional and never chooses the root cause. To enable an additional
-local language-model summary (bounded to 300 seconds with a 4096-token Ollama
-context and a 120-token response), pull the model and set:
-
-```powershell
-docker compose exec ollama ollama pull llama3.2:3b
-```
+llama.cpp is optional and never chooses the root cause. To enable an additional
+local language-model summary (bounded to 300 seconds with a 2048-token context
+and a 120-token response), set:
 
 ```env
 ENABLE_LLM_SUMMARY=true
 ```
 
-Recreate `agent-api` after changing `.env`. The LLM output appears only as
+The llama.cpp container downloads the configured Hugging Face GGUF repository
+on first start (`LLAMA_HF_REPO`) and caches it in the `llama-models` volume.
+Recreate `agent-api` after changing `.env` or the skill files:
+
+```powershell
+docker compose up -d --build agent-api llama-cpp
+```
+
+The LLM output appears only as
 `local_llm_summary`; the evidence-based `root_cause` field is independent.
 
 The optional synthesis prompt loads the compact project skill at
 `skills/incident-investigation/SKILL.md`. It injects only a short set of
-evidence-first rules instead of repeating project history in every Ollama
+evidence-first rules instead of repeating project history in every llama.cpp
 request. This reduces instruction-token overhead; CPU inference time is still
-controlled by `OLLAMA_NUM_CTX`, `OLLAMA_NUM_PREDICT`, and
-`OLLAMA_TIMEOUT_SECONDS`.
+controlled by `LLAMA_NUM_CTX`, `LLAMA_NUM_PREDICT`, and
+`LLAMA_TIMEOUT_SECONDS`.
 
 The memory API is `POST /api/memory/incidents`; it rejects writes unless the
 request includes `approved: true`. Stored reports are embedded locally and

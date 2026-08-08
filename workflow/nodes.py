@@ -1,4 +1,4 @@
-from tools import prometheus_api, loki_api, tempo_api, qdrant_api, ollama_api
+from tools import prometheus_api, loki_api, tempo_api, qdrant_api, llama_api
 def supervisor(s): return {"question":s.get("question","Why is checkout failing?")}
 def metrics(s): return {"metrics":{"error_rate":prometheus_api.query('sum by (service, fault) (rate(checkout_stage_total{outcome="error"}[5m]))'),"latency":prometheus_api.query('histogram_quantile(0.95,sum by (le, service) (rate(checkout_stage_duration_seconds_bucket[5m])))')}}
 def logs(s): return {"logs":loki_api.query('{service_name=~"frontend|gateway|checkout|inventory|payment"} |= "error"')}
@@ -9,7 +9,7 @@ def knowledge(s):
     return {"knowledge": qdrant_api.runbook(s.get("logs", "")), "similar_incidents": qdrant_api.search_similar(context)}
 def rootcause(s):
     evidence={k:s.get(k) for k in ("metrics","logs","traces","correlation","knowledge","similar_incidents")}
-    # The root-cause agent is evidence-first and remains useful with Ollama off.
+    # The root-cause agent is evidence-first and remains useful with local LLM narration off.
     log_text = str(s.get("logs", ""))
     findings = []
     signatures = {
@@ -25,7 +25,7 @@ def rootcause(s):
         if signature in log_text: findings.append(finding)
     finding = "; ".join(findings) if findings else "No matching simulated-failure signature was found in the current log window."
     result = {"root_cause": finding}
-    summary = ollama_api.summarize(evidence, s.get("question", ""))
+    summary = llama_api.summarize(evidence, s.get("question", ""))
     if summary:
         result["llm_summary"] = summary
     return result
