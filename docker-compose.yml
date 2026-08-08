@@ -1,0 +1,107 @@
+services:
+  grafana:
+    image: grafana/grafana:11.5.2
+    ports: ["3000:3000"]
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on: [prometheus, loki, tempo, victoriametrics]
+
+  prometheus:
+    image: prom/prometheus:v3.2.1
+    command: ["--config.file=/etc/prometheus/prometheus.yml", "--web.enable-remote-write-receiver"]
+    ports: ["9090:9090"]
+    volumes: ["./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro"]
+    depends_on: [victoriametrics]
+
+  victoriametrics:
+    image: victoriametrics/victoria-metrics:latest
+    command: ["-storageDataPath=/storage", "-retentionPeriod=7d"]
+    ports: ["8428:8428"]
+    volumes: ["victoriametrics-data:/storage"]
+
+  loki:
+    image: grafana/loki:3.4.2
+    command: ["-config.file=/etc/loki/config.yml"]
+    ports: ["3100:3100"]
+    volumes: ["./loki/config.yml:/etc/loki/config.yml:ro"]
+
+  tempo:
+    image: grafana/tempo:2.7.2
+    command: ["-config.file=/etc/tempo/config.yml"]
+    ports: ["3200:3200"]
+    volumes: ["./tempo/config.yml:/etc/tempo/config.yml:ro"]
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.119.0
+    command: ["--config=/etc/otelcol-contrib/config.yaml"]
+    ports: ["4317:4317", "4318:4318", "8889:8889", "13133:13133"]
+    volumes: ["./otel/collector.yaml:/etc/otelcol-contrib/config.yaml:ro"]
+    depends_on: [loki, tempo, prometheus]
+
+  postgres:
+    image: postgres:17-alpine
+    environment: {POSTGRES_PASSWORD: demo, POSTGRES_DB: checkout}
+    ports: ["5432:5432"]
+
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+
+  frontend:
+    build: {context: ., dockerfile: apps/frontend/Dockerfile}
+    environment: {SERVICE_NAME: frontend, DOWNSTREAM_URL: http://gateway:8000, OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318/v1/traces, OTEL_EXPORTER_OTLP_METRICS_ENDPOINT: http://otel-collector:4318/v1/metrics, OTEL_EXPORTER_OTLP_LOGS_ENDPOINT: http://otel-collector:4318/v1/logs}
+    ports: ["8080:8000"]
+    depends_on: [gateway, otel-collector]
+  gateway:
+    build: {context: ., dockerfile: apps/gateway/Dockerfile}
+    environment: {SERVICE_NAME: gateway, DOWNSTREAM_URL: http://checkout:8000, OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318/v1/traces, OTEL_EXPORTER_OTLP_METRICS_ENDPOINT: http://otel-collector:4318/v1/metrics, OTEL_EXPORTER_OTLP_LOGS_ENDPOINT: http://otel-collector:4318/v1/logs}
+    depends_on: [checkout]
+  checkout:
+    build: {context: ., dockerfile: apps/checkout/Dockerfile}
+    environment: {SERVICE_NAME: checkout, DOWNSTREAM_URL: http://inventory:8000, OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318/v1/traces, OTEL_EXPORTER_OTLP_METRICS_ENDPOINT: http://otel-collector:4318/v1/metrics, OTEL_EXPORTER_OTLP_LOGS_ENDPOINT: http://otel-collector:4318/v1/logs}
+    depends_on: [inventory, postgres, redis]
+  inventory:
+    build: {context: ., dockerfile: apps/inventory/Dockerfile}
+    environment: {SERVICE_NAME: inventory, DOWNSTREAM_URL: http://payment:8000, OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318/v1/traces, OTEL_EXPORTER_OTLP_METRICS_ENDPOINT: http://otel-collector:4318/v1/metrics, OTEL_EXPORTER_OTLP_LOGS_ENDPOINT: http://otel-collector:4318/v1/logs}
+    depends_on: [payment]
+  payment:
+    build: {context: ., dockerfile: apps/payment/Dockerfile}
+    environment: {SERVICE_NAME: payment, OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318/v1/traces, OTEL_EXPORTER_OTLP_METRICS_ENDPOINT: http://otel-collector:4318/v1/metrics, OTEL_EXPORTER_OTLP_LOGS_ENDPOINT: http://otel-collector:4318/v1/logs}
+    depends_on: [postgres]
+
+  qdrant:
+    image: qdrant/qdrant:v1.13.2
+    ports: ["6333:6333"]
+    volumes: ["./vectorstore:/qdrant/storage"]
+  ollama:
+    image: ollama/ollama:0.5.7
+    ports: ["11434:11434"]
+    volumes: ["ollama:/root/.ollama"]
+  agent-api:
+    build: {context: ., dockerfile: agents/Dockerfile}
+    ports: ["8081:8081"]
+    environment:
+      PROMETHEUS_URL: http://prometheus:9090
+      LOKI_URL: http://loki:3100
+      TEMPO_URL: http://tempo:3200
+      QDRANT_URL: http://qdrant:6333
+      OLLAMA_BASE_URL: http://ollama:11434/v1
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.2:3b}
+      ENABLE_LLM_SUMMARY: ${ENABLE_LLM_SUMMARY:-false}
+      PAYMENT_CONTROL_URL: http://payment:8000
+      FRONTEND_URL: http://frontend:8000
+    depends_on: [prometheus, loki, tempo, qdrant, ollama, payment]
+  ui:
+    image: nginx:1.27-alpine
+    ports: ["5173:80"]
+    volumes: ["./ui:/usr/share/nginx/html:ro"]
+    depends_on: [agent-api]
+volumes:
+  ollama:
+  victoriametrics-data:
