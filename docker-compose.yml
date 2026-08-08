@@ -89,7 +89,7 @@ services:
       LLAMA_ARG_CTX_SIZE: ${LLAMA_NUM_CTX:-4096}
       LLAMA_ARG_N_PREDICT: ${LLAMA_NUM_PREDICT:-120}
     ports: ["11434:8080"]
-    volumes: ["llama-models:/root/.cache/llama.cpp"]
+    volumes: ["llama-models:/root/.cache"]
   agent-api:
     build: {context: ., dockerfile: agents/Dockerfile}
     ports: ["8081:8081"]
