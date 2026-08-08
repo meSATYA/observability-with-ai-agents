@@ -6,4 +6,5 @@ COPY agents agents
 COPY workflow workflow
 COPY tools tools
 COPY runbooks runbooks
+COPY skills skills
 CMD ["uvicorn", "agents.api:app", "--host", "0.0.0.0", "--port", "8081"]

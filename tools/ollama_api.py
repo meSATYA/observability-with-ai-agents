@@ -1,4 +1,5 @@
 import json, os, requests
+from tools.skill_context import load_context
 
 def _compact_evidence(evidence, limit=6000):
     """Keep the summary prompt bounded; raw logs/traces can be enormous."""
@@ -24,7 +25,7 @@ def summarize(evidence, question=""):
         response = requests.post(base_url + "/api/chat", json={
             "model": os.environ["OLLAMA_MODEL"],
             "messages": [
-                {"role": "system", "content": "Act as a cautious SRE. Use only supplied evidence; do not recommend unapproved changes."},
+                {"role": "system", "content": load_context(question)},
                 {"role": "user", "content": _compact_evidence(evidence)},
             ],
             "stream": False,

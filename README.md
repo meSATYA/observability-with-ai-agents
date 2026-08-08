@@ -86,6 +86,13 @@ ENABLE_LLM_SUMMARY=true
 Recreate `agent-api` after changing `.env`. The LLM output appears only as
 `local_llm_summary`; the evidence-based `root_cause` field is independent.
 
+The optional synthesis prompt loads the compact project skill at
+`skills/incident-investigation/SKILL.md`. It injects only a short set of
+evidence-first rules instead of repeating project history in every Ollama
+request. This reduces instruction-token overhead; CPU inference time is still
+controlled by `OLLAMA_NUM_CTX`, `OLLAMA_NUM_PREDICT`, and
+`OLLAMA_TIMEOUT_SECONDS`.
+
 The memory API is `POST /api/memory/incidents`; it rejects writes unless the
 request includes `approved: true`. Stored reports are embedded locally and
 retrieved by similarity during later investigations.
