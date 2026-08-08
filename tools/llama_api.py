@@ -18,19 +18,19 @@ def _compact_evidence(evidence, limit=6000):
     return json.dumps(compact, default=str)[:limit]
 
 
-def summarize(evidence, question=""):
+def summarize_result(evidence, question=""):
     if os.getenv("ENABLE_LLM_SUMMARY", "false").lower() != "true":
         logger.info("llama.cpp summary disabled by ENABLE_LLM_SUMMARY")
-        return None
+        return {"summary": None, "status": "disabled"}
     if not os.getenv("LLAMA_MODEL"):
         logger.warning("llama.cpp summary skipped: LLAMA_MODEL is not configured")
-        return None
+        return {"summary": None, "status": "not_configured"}
     # Factual metric/log/trace questions are answered directly from evidence.
     q = question.lower()
     synthesis_terms = ("why", "explain", "summarize", "root cause", "mitigation", "recommend", "assess")
     if not any(term in q for term in synthesis_terms):
         logger.info("llama.cpp summary skipped for factual question: %s", question)
-        return None
+        return {"summary": None, "status": "factual_query"}
     try:
         timeout = float(os.getenv("LLAMA_TIMEOUT_SECONDS", "300"))
         response = requests.post(
@@ -48,8 +48,14 @@ def summarize(evidence, question=""):
             timeout=timeout,
         )
         response.raise_for_status()
-        return response.json().get("choices", [{}])[0].get("message", {}).get("content")
-    except Exception:
+        summary = response.json().get("choices", [{}])[0].get("message", {}).get("content")
+        return {"summary": summary, "status": "completed" if summary else "empty_response"}
+    except Exception as exc:
         # Narration is optional. Never let model/server errors overwrite evidence.
         logger.exception("llama.cpp summary request failed")
-        return None
+        return {"summary": None, "status": "error", "error": str(exc)[:300]}
+
+
+def summarize(evidence, question=""):
+    """Backward-compatible summary-only helper for legacy graph code."""
+    return summarize_result(evidence, question).get("summary")

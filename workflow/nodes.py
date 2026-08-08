@@ -25,9 +25,12 @@ def rootcause(s):
         if signature in log_text: findings.append(finding)
     finding = "; ".join(findings) if findings else "No matching simulated-failure signature was found in the current log window."
     result = {"root_cause": finding}
-    summary = llama_api.summarize(evidence, s.get("question", ""))
-    if summary:
-        result["llm_summary"] = summary
+    llm = llama_api.summarize_result(evidence, s.get("question", ""))
+    result["llm_status"] = llm["status"]
+    if llm.get("error"):
+        result["llm_error"] = llm["error"]
+    if llm.get("summary"):
+        result["llm_summary"] = llm["summary"]
     return result
 def remediate(s):
     root = s.get("root_cause", "")
@@ -38,4 +41,4 @@ def remediate(s):
     if "Card declined" in root: actions.append("Validate decline codes; do not automatically retry a hard decline.")
     actions.append("Clear injected faults and validate recovery after mitigation.")
     return {"remediation": actions}
-def report(s): return {"report":{"incident_id":s.get("incident_id"),"question":s["question"],"root_cause":s["root_cause"],"local_llm_summary":s.get("llm_summary"),"similar_incidents":s.get("similar_incidents",[]),"evidence":{k:s.get(k) for k in ("metrics","logs","traces","correlation")},"remediation":s["remediation"],"safety":"Read-only investigation; memory writes require explicit approval; no remediation is executed."}}
+def report(s): return {"report":{"incident_id":s.get("incident_id"),"question":s["question"],"root_cause":s["root_cause"],"local_llm_summary":s.get("llm_summary"),"local_llm_status":s.get("llm_status","unknown"),"local_llm_error":s.get("llm_error"),"similar_incidents":s.get("similar_incidents",[]),"evidence":{k:s.get(k) for k in ("metrics","logs","traces","correlation")},"remediation":s["remediation"],"safety":"Read-only investigation; memory writes require explicit approval; no remediation is executed."}}
