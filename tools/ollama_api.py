@@ -14,8 +14,9 @@ def summarize(evidence):
     try:
         from openai import OpenAI
         timeout = float(os.getenv("OLLAMA_TIMEOUT_SECONDS", "60"))
+        context_size = int(os.getenv("OLLAMA_NUM_CTX", "4096"))
         c=OpenAI(base_url=os.environ["OLLAMA_BASE_URL"],api_key="local", timeout=timeout, max_retries=0)
-        return c.chat.completions.create(model=os.environ["OLLAMA_MODEL"],messages=[{"role":"system","content":"Act as a cautious SRE. Use only supplied evidence; do not recommend unapproved changes."},{"role":"user","content":_compact_evidence(evidence)}], max_tokens=400).choices[0].message.content
+        return c.chat.completions.create(model=os.environ["OLLAMA_MODEL"],messages=[{"role":"system","content":"Act as a cautious SRE. Use only supplied evidence; do not recommend unapproved changes."},{"role":"user","content":_compact_evidence(evidence)}], max_tokens=400, extra_body={"options": {"num_ctx": context_size}}).choices[0].message.content
     except Exception:
         # LLM narration is optional. Never allow an infrastructure/model error to
         # become an incident finding or to overwrite evidence-based root cause.

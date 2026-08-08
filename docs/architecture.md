@@ -51,7 +51,7 @@ flowchart TB
   backend errors.
 - Root-cause detection uses known fault signatures in current logs; it does not
   depend on Ollama.
-- Ollama, when enabled, receives a compact evidence prompt, is capped at 60
-  seconds by default, and contributes only the
+- Ollama, when enabled, receives a compact evidence prompt, requests a
+  4096-token context by default, is capped at 60 seconds, and contributes only the
   `local_llm_summary` report field.
 - No remediation is executed by the agent.
