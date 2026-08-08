@@ -1,9 +1,12 @@
 import json
+import logging
 import os
 
 import requests
 
 from tools.skill_context import load_context
+
+logger = logging.getLogger(__name__)
 
 
 def _compact_evidence(evidence, limit=6000):
@@ -17,13 +20,16 @@ def _compact_evidence(evidence, limit=6000):
 
 def summarize(evidence, question=""):
     if os.getenv("ENABLE_LLM_SUMMARY", "false").lower() != "true":
+        logger.info("llama.cpp summary disabled by ENABLE_LLM_SUMMARY")
         return None
     if not os.getenv("LLAMA_MODEL"):
+        logger.warning("llama.cpp summary skipped: LLAMA_MODEL is not configured")
         return None
     # Factual metric/log/trace questions are answered directly from evidence.
     q = question.lower()
     synthesis_terms = ("why", "explain", "summarize", "root cause", "mitigation", "recommend", "assess")
     if not any(term in q for term in synthesis_terms):
+        logger.info("llama.cpp summary skipped for factual question: %s", question)
         return None
     try:
         timeout = float(os.getenv("LLAMA_TIMEOUT_SECONDS", "300"))
@@ -45,4 +51,5 @@ def summarize(evidence, question=""):
         return response.json().get("choices", [{}])[0].get("message", {}).get("content")
     except Exception:
         # Narration is optional. Never let model/server errors overwrite evidence.
+        logger.exception("llama.cpp summary request failed")
         return None
