@@ -81,6 +81,8 @@ services:
     volumes: ["./vectorstore:/qdrant/storage"]
   ollama:
     image: ollama/ollama:0.5.7
+    environment:
+      OLLAMA_CONTEXT_LENGTH: ${OLLAMA_NUM_CTX:-4096}
     ports: ["11434:11434"]
     volumes: ["ollama:/root/.ollama"]
   agent-api:
