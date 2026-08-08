@@ -1,12 +1,21 @@
-# AI Observability Lab — entirely local
+# AI Observability Lab - entirely local
 
-This is a production-debugging simulation, not an autonomous remediator. A user clicks **Inject Failure**, generates checkout requests, and asks **“Why is checkout failing?”**. The agent API runs a LangGraph workflow with a Supervisor, Metrics, Traces, Logs, Correlation, Knowledge, Root Cause, and Remediation stages. The remediation stage only recommends human-approved actions.
+This is a production-debugging simulation, not an autonomous remediator. Select
+one or more safe failures, generate local traffic, then ask the agent workflow
+an SRE-style question. The report is evidence-first and remediation suggestions
+remain human-approved only.
 
 ## Architecture
 
-`Frontend → Gateway → Checkout → Inventory → Payment`
+`Frontend -> Gateway -> Checkout -> Inventory -> Payment`
 
-Every service exports OpenTelemetry traces, metrics, and logs to the local Collector. The Collector sends them to Tempo, Prometheus, and Loki. Prometheus remote-writes a copy to VictoriaMetrics. Grafana has all sources provisioned. The five-agent evidence fan-in is then passed to an optional local Ollama model; Qdrant is available for local runbook memory.
+Each service exports OpenTelemetry traces, metrics, and logs to the Collector.
+The Collector sends traces to Tempo, logs to Loki, and metrics to Prometheus;
+Prometheus remote-writes metrics to VictoriaMetrics. Grafana is provisioned with
+all four data sources. The agent queries Prometheus, Loki, Tempo, and local
+runbooks, then optionally produces a local Ollama summary.
+
+See [the end-to-end flow diagram](docs/architecture.md).
 
 ## Start
 
@@ -15,59 +24,83 @@ Copy-Item .env.example .env
 docker compose up --build -d
 ```
 
-Open these local-only endpoints:
+Local endpoints:
 
 - UI: http://localhost:5173
 - Grafana: http://localhost:3000 (`admin` / `admin`)
 - Agent API: http://localhost:8081/docs
+- Collector health: http://localhost:13133
 
-Pull a local model once (optional, enables natural-language root-cause synthesis):
+## Run a multi-failure exercise
+
+1. Open the UI and select any combination of failures. One mode is allowed per
+   service, but several services may fail simultaneously.
+2. Click **Simulate selected failures**. The Agent API enables the modes and
+   sends traffic through the normal frontend path and directly to every selected
+   service so upstream faults cannot hide downstream evidence.
+3. Wait 10 seconds for telemetry batching.
+4. Use any question preset: checkout failure, dependencies, classification,
+   safe mitigation, or correlated evidence.
+5. Click **Clear all failures** when finished.
+
+Available fault modes:
+
+- Frontend worker overload
+- Gateway rate limit
+- Checkout Redis timeout
+- Inventory reservation-database outage
+- Payment database-pool exhaustion
+- Payment-provider timeout
+- Payment card decline
+
+In Grafana Explore, query `checkout_stage_total` in VictoriaMetrics,
+`{service_name=~"frontend|gateway|checkout|inventory|payment"}` in Loki, and
+search Tempo for error traces.
+
+## Investigation behavior
+
+The workflow gathers metrics, logs, traces, correlation context, and a relevant
+local runbook. Each backend query is bounded to three seconds and returns
+partial evidence if a backend is unavailable. Root-cause detection matches the
+current error-log signatures; an unavailable observability backend is reported
+as evidence, rather than hanging the API.
+
+Ollama is optional and never chooses the root cause. To enable an additional
+local language-model summary (bounded to 12 seconds), pull the model and set:
 
 ```powershell
 docker compose exec ollama ollama pull llama3.2:3b
 ```
 
-Ollama is optional. If the model has not been pulled or is unavailable, the
-evidence-based root-cause report still runs; only the optional
-`local_llm_summary` field is omitted.
+```env
+ENABLE_LLM_SUMMARY=true
+```
 
-The report is evidence-first and completes without waiting for an LLM. To opt
-into a bounded (12-second) local LLM summary, add `ENABLE_LLM_SUMMARY=true` to
-`.env` and recreate `agent-api`.
+Recreate `agent-api` after changing `.env`. The LLM output appears only as
+`local_llm_summary`; the evidence-based `root_cause` field is independent.
 
-## Exercise the workflow
+## Troubleshooting telemetry
 
-1. In the UI, select any combination of failure simulations. One failure mode is
-   allowed per service: frontend overload, gateway rate limit, checkout Redis
-   timeout, inventory database outage, and three Payment modes (database-pool
-   exhaustion, provider timeout, or card decline).
-2. Generate traffic (repeat `/checkout` requests from http://localhost:8080/checkout, or run `make demo`).
-3. Click **Why is checkout failing?**.
-4. Review the report and Grafana correlations. Clear the failure when finished.
+The Collector writes detailed debug batches for every received signal. If
+Grafana is empty after a simulation, inspect:
 
-Wait 10 seconds after injecting the failure: traces and logs are batched, and the
-lab exports metrics every 5 seconds. In Grafana Explore, use `checkout_stage_total`
-in VictoriaMetrics, `{service_name="payment"}` in Loki, and search Tempo for the
-`payment` service.
+```powershell
+docker compose logs --tail=150 otel-collector
+```
 
-For pipeline diagnostics, the Collector health endpoint is `http://localhost:13133`.
-Its logs show `debug` exporter batch counts for each received signal.
-
-Each simulated Payment fault propagates upstream and produces matching error logs,
-error spans, and latency/error metrics. The root-cause and remediation stages
-select their evidence-backed findings and local runbook accordingly.
+No debug batches means application-to-Collector OTLP ingress is failing. Debug
+batches followed by exporter errors identify the affected backend.
 
 ## Project map
 
-- `apps/`: five independently named, OpenTelemetry-instrumented services.
-- `otel/`: Collector fan-out configuration.
-- `grafana/`, `victoriametrics/`, `tempo/`, `loki/`, `prometheus/`: local observability components.
-- `agents/` and `langgraph/`: specialist responsibilities and graph source. `workflow/` hosts the executable wrapper, avoiding a Python import-name collision with LangGraph itself.
-- `tools/`: narrow query clients; agent code has no write access to observability backends.
-- `faults/`, `runbooks/`, `vectorstore/`, `ui/`, `tests/`, `docs/`: exercise, knowledge, presentation, and verification surfaces.
+- `apps/`: five OpenTelemetry-instrumented services and fault modes.
+- `otel/`: Collector receive, processing, export, health, and debug setup.
+- `grafana/`, `victoriametrics/`, `tempo/`, `loki/`, `prometheus/`: local observability stack.
+- `agents/`, `workflow/`, `tools/`: simulation API, LangGraph workflow, and bounded query clients.
+- `runbooks/`, `vectorstore/`: local Markdown knowledge sources; Qdrant is reserved as the next retrieval backend.
+- `ui/`, `faults/`, `tests/`, `docs/`: exercise controls, scripted demo, tests, and architecture documentation.
 
 ## Safety boundaries
 
-The current system is deliberately **read-only** after failure injection. Any future remediation tool should be a separate, allowlisted capability that requires explicit human approval. Also apply time windows, result limits, query budgets, and evidence citations before using the design against real systems.
-
-Grafana’s [Tempo local quickstart](https://grafana.com/docs/tempo/latest/docker-example/) and [Loki native OpenTelemetry ingestion guide](https://grafana.com/docs/loki/latest/send-data/otel/) informed the local telemetry topology.
+The workflow is read-only after fault injection. Future remediation tools should
+be separate, allowlisted capabilities requiring explicit human approval.
