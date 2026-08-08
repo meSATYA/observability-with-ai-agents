@@ -83,7 +83,7 @@ services:
     image: ghcr.io/ggml-org/llama.cpp:server
     command:
       - -hf
-      - ${LLAMA_HF_REPO:-ggml-org/gemma-3-1b-it-GGUF}
+      - ${LLAMA_HF_REPO:-ggml-org/gemma-3-1b-it-GGUF:Q4_K_M}
       - --alias
       - ${LLAMA_MODEL:-local-model}
       - --host

@@ -80,7 +80,8 @@ ENABLE_LLM_SUMMARY=true
 ```
 
 The llama.cpp container downloads the configured Hugging Face GGUF repository
-on first start (`LLAMA_HF_REPO`) and caches it in the `llama-models` volume.
+on first start (`LLAMA_HF_REPO`, including its quantization tag) and caches it
+in the `llama-models` volume.
 Recreate `agent-api` after changing `.env` or the skill files:
 
 ```powershell
