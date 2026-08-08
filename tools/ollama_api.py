@@ -8,11 +8,16 @@ def _compact_evidence(evidence, limit=12000):
         compact[key] = serialized[-2500:] if len(serialized) > 2500 else value
     return json.dumps(compact, default=str)[:limit]
 
-def summarize(evidence):
+def summarize(evidence, question=""):
     if os.getenv("ENABLE_LLM_SUMMARY", "false").lower() != "true": return None
     if not os.getenv("OLLAMA_MODEL"): return None
+    # Factual metric/log/trace questions are answered directly from evidence;
+    # do not spend a minute invoking a local model for a simple lookup.
+    q = question.lower()
+    synthesis_terms = ("why", "explain", "summarize", "root cause", "mitigation", "recommend", "assess")
+    if not any(term in q for term in synthesis_terms): return None
     try:
-        timeout = float(os.getenv("OLLAMA_TIMEOUT_SECONDS", "60"))
+        timeout = float(os.getenv("OLLAMA_TIMEOUT_SECONDS", "120"))
         context_size = int(os.getenv("OLLAMA_NUM_CTX", "4096"))
         base_url = os.environ["OLLAMA_BASE_URL"].removesuffix("/v1")
         response = requests.post(base_url + "/api/chat", json={

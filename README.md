@@ -72,7 +72,7 @@ an unavailable observability backend is reported as evidence, rather than
 hanging the API. Incident memory is never written without explicit approval.
 
 Ollama is optional and never chooses the root cause. To enable an additional
-local language-model summary (bounded to 60 seconds with a 4096-token Ollama
+local language-model summary (bounded to 120 seconds with a 4096-token Ollama
 context), pull the model and set:
 
 ```powershell

@@ -25,7 +25,7 @@ def rootcause(s):
         if signature in log_text: findings.append(finding)
     finding = "; ".join(findings) if findings else "No matching simulated-failure signature was found in the current log window."
     result = {"root_cause": finding}
-    summary = ollama_api.summarize(evidence)
+    summary = ollama_api.summarize(evidence, s.get("question", ""))
     if summary:
         result["llm_summary"] = summary
     return result
