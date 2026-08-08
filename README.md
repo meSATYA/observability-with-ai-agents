@@ -72,7 +72,7 @@ an unavailable observability backend is reported as evidence, rather than
 hanging the API. Incident memory is never written without explicit approval.
 
 llama.cpp is optional and never chooses the root cause. To enable an additional
-local language-model summary (bounded to 300 seconds with a 2048-token context
+local language-model summary (bounded to 300 seconds with a 4096-token context
 and a 120-token response), set:
 
 ```env

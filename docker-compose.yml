@@ -91,7 +91,7 @@ services:
       - --port
       - "8080"
       - -c
-      - "${LLAMA_NUM_CTX:-2048}"
+      - "${LLAMA_NUM_CTX:-4096}"
       - -n
       - "${LLAMA_NUM_PREDICT:-120}"
     ports: ["11434:8080"]
@@ -108,7 +108,7 @@ services:
       LLAMA_MODEL: ${LLAMA_MODEL:-local-model}
       ENABLE_LLM_SUMMARY: ${ENABLE_LLM_SUMMARY:-false}
       LLAMA_TIMEOUT_SECONDS: ${LLAMA_TIMEOUT_SECONDS:-300}
-      LLAMA_NUM_CTX: ${LLAMA_NUM_CTX:-2048}
+      LLAMA_NUM_CTX: ${LLAMA_NUM_CTX:-4096}
       LLAMA_NUM_PREDICT: ${LLAMA_NUM_PREDICT:-120}
       PAYMENT_CONTROL_URL: http://payment:8000
       FRONTEND_URL: http://frontend:8000
