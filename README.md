@@ -73,7 +73,7 @@ hanging the API. Incident memory is never written without explicit approval.
 
 Ollama is optional and never chooses the root cause. To enable an additional
 local language-model summary (bounded to 300 seconds with a 4096-token Ollama
-context), pull the model and set:
+context and a 120-token response), pull the model and set:
 
 ```powershell
 docker compose exec ollama ollama pull llama3.2:3b

@@ -98,6 +98,7 @@ services:
       ENABLE_LLM_SUMMARY: ${ENABLE_LLM_SUMMARY:-false}
       OLLAMA_TIMEOUT_SECONDS: ${OLLAMA_TIMEOUT_SECONDS:-300}
       OLLAMA_NUM_CTX: ${OLLAMA_NUM_CTX:-4096}
+      OLLAMA_NUM_PREDICT: ${OLLAMA_NUM_PREDICT:-120}
       PAYMENT_CONTROL_URL: http://payment:8000
       FRONTEND_URL: http://frontend:8000
     depends_on: [prometheus, loki, tempo, qdrant, ollama, payment]
