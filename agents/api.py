@@ -2,10 +2,12 @@ import os, requests, uuid
 from concurrent.futures import ThreadPoolExecutor
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from prometheus_client import make_asgi_app
 from pydantic import BaseModel, Field
 from tools import qdrant_api
 from workflow.graph import build_graph
 app=FastAPI(title="Local SRE multi-agent API"); graph=build_graph()
+app.mount("/metrics", make_asgi_app())
 app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:5173"], allow_methods=["*"], allow_headers=["*"])
 class Investigation(BaseModel): question:str="Why is checkout failing?"
 class FailureSimulation(BaseModel): faults:list[str] = Field(default_factory=list)

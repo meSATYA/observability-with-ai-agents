@@ -1,0 +1,118 @@
+{
+  "annotations": {"list": []},
+  "editable": true,
+  "graphTooltip": 1,
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "llama.cpp scrape health",
+      "description": "Prometheus can scrape the llama.cpp /metrics endpoint.",
+      "gridPos": {"h": 5, "w": 6, "x": 0, "y": 0},
+      "datasource": {"type": "prometheus", "uid": "victoriametrics"},
+      "targets": [{"refId": "A", "expr": "up{job=\"llama-cpp\"}"}],
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "orientation": "auto", "colorMode": "value", "graphMode": "none", "justifyMode": "auto"},
+      "fieldConfig": {"defaults": {"mappings": [{"type": "value", "options": {"0": {"text": "DOWN", "color": "red"}, "1": {"text": "UP", "color": "green"}}}]}, "overrides": []}
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Prompt processing throughput",
+      "description": "Input-token processing speed reported by llama.cpp.",
+      "gridPos": {"h": 8, "w": 9, "x": 6, "y": 0},
+      "datasource": {"type": "prometheus", "uid": "victoriametrics"},
+      "targets": [{"refId": "A", "expr": "llamacpp:prompt_tokens_seconds", "legendFormat": "prompt tokens/s"}],
+      "fieldConfig": {"defaults": {"unit": "short"}, "overrides": []},
+      "options": {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "multi"}}
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Generation throughput",
+      "description": "Output-token generation speed reported by llama.cpp.",
+      "gridPos": {"h": 8, "w": 9, "x": 15, "y": 0},
+      "datasource": {"type": "prometheus", "uid": "victoriametrics"},
+      "targets": [{"refId": "A", "expr": "llamacpp:predicted_tokens_seconds", "legendFormat": "predicted tokens/s"}],
+      "fieldConfig": {"defaults": {"unit": "short"}, "overrides": []},
+      "options": {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "multi"}}
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Inference queue pressure",
+      "description": "Active and deferred requests. Sustained deferred work indicates saturation.",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+      "datasource": {"type": "prometheus", "uid": "victoriametrics"},
+      "targets": [
+        {"refId": "A", "expr": "llamacpp:requests_processing", "legendFormat": "processing"},
+        {"refId": "B", "expr": "llamacpp:requests_deferred", "legendFormat": "deferred"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "short"}, "overrides": []},
+      "options": {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "multi"}}
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Context high-watermark",
+      "description": "Highest context token count observed by llama.cpp. Compare with LLAMA_NUM_CTX.",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+      "datasource": {"type": "prometheus", "uid": "victoriametrics"},
+      "targets": [{"refId": "A", "expr": "llamacpp:n_tokens_max", "legendFormat": "tokens"}],
+      "fieldConfig": {"defaults": {"unit": "short"}, "overrides": []},
+      "options": {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "single"}}
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Summary requests by outcome",
+      "description": "Agent-side quality signal: completed, empty, skipped, and failed local summaries.",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16},
+      "datasource": {"type": "prometheus", "uid": "victoriametrics"},
+      "targets": [{"refId": "A", "expr": "sum by (status) (rate(agent_llama_requests_total[5m]))", "legendFormat": "{{status}}"}],
+      "fieldConfig": {"defaults": {"unit": "reqps"}, "overrides": []},
+      "options": {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "multi"}}
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "Summary latency p95",
+      "description": "End-to-end agent-api latency for llama.cpp summary requests.",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16},
+      "datasource": {"type": "prometheus", "uid": "victoriametrics"},
+      "targets": [{"refId": "A", "expr": "histogram_quantile(0.95, sum by (le) (rate(agent_llama_request_duration_seconds_bucket[5m])))", "legendFormat": "p95"}],
+      "fieldConfig": {"defaults": {"unit": "s"}, "overrides": []},
+      "options": {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "single"}}
+    },
+    {
+      "id": 8,
+      "type": "stat",
+      "title": "Summary success ratio",
+      "description": "Completed llama.cpp summaries divided by all summary attempts in the last five minutes.",
+      "gridPos": {"h": 5, "w": 8, "x": 0, "y": 24},
+      "datasource": {"type": "prometheus", "uid": "victoriametrics"},
+      "targets": [{"refId": "A", "expr": "sum(rate(agent_llama_requests_total{status=\"completed\"}[5m])) / clamp_min(sum(rate(agent_llama_requests_total[5m])), 0.000001)"}],
+      "fieldConfig": {"defaults": {"unit": "percentunit", "min": 0, "max": 1}, "overrides": []},
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "orientation": "auto", "colorMode": "value", "graphMode": "none", "justifyMode": "auto"}
+    },
+    {
+      "id": 9,
+      "type": "timeseries",
+      "title": "Prompt and completion token rate",
+      "description": "Agent-side token usage reported by the OpenAI-compatible llama.cpp response.",
+      "gridPos": {"h": 8, "w": 16, "x": 8, "y": 24},
+      "datasource": {"type": "prometheus", "uid": "victoriametrics"},
+      "targets": [
+        {"refId": "A", "expr": "rate(agent_llama_prompt_tokens_total[5m])", "legendFormat": "prompt tokens/s"},
+        {"refId": "B", "expr": "rate(agent_llama_completion_tokens_total[5m])", "legendFormat": "completion tokens/s"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "short"}, "overrides": []},
+      "options": {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "multi"}}
+    }
+  ],
+  "schemaVersion": 40,
+  "tags": ["llama.cpp", "local-ai", "sre"],
+  "time": {"from": "now-30m", "to": "now"},
+  "title": "llama.cpp runtime and quality",
+  "uid": "llamacpp-observability",
+  "version": 1
+}

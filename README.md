@@ -102,6 +102,24 @@ The memory API is `POST /api/memory/incidents`; it rejects writes unless the
 request includes `approved: true`. Stored reports are embedded locally and
 retrieved by similarity during later investigations.
 
+### llama.cpp observability
+
+llama.cpp exposes its Prometheus-compatible `/metrics` endpoint when
+`LLAMA_ARG_ENDPOINT_METRICS=1` is enabled. Prometheus scrapes it at
+`llama-cpp:8080` and remote-writes the samples to VictoriaMetrics. Grafana
+provisions the **llama.cpp runtime and quality** dashboard with:
+
+- prompt and generation throughput;
+- active/deferred inference queue pressure;
+- context-token high watermark;
+- llama.cpp scrape health;
+- agent-side summary latency and success/error outcomes; and
+- prompt/completion token rates reported by the OpenAI-compatible response.
+
+The agent API also exposes `/metrics`, so summary failures (for example a
+stopped model or a context-limit error) remain visible without being mixed into
+the evidence-based application `root_cause`.
+
 ## Troubleshooting telemetry
 
 The Collector writes detailed debug batches for every received signal. If

@@ -54,4 +54,7 @@ flowchart TB
 - llama.cpp, when enabled, receives a compact evidence prompt, requests a
   4096-token context by default, is capped at 300 seconds, and contributes only the
   `local_llm_summary` report field.
+- Prometheus scrapes llama.cpp `/metrics` and agent-api `/metrics`; Grafana
+  presents runtime throughput, queue/context pressure, latency, token usage,
+  and summary success/error quality signals.
 - No remediation is executed by the agent.
