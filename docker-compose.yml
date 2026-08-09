@@ -81,6 +81,7 @@ services:
     volumes: ["./vectorstore:/qdrant/storage"]
   llama-cpp:
     image: ghcr.io/ggml-org/llama.cpp:server
+    command: ["--metrics"]
     environment:
       LLAMA_ARG_HF_REPO: ${LLAMA_HF_REPO:-ggml-org/gemma-3-1b-it-GGUF:Q4_K_M}
       LLAMA_ARG_ALIAS: ${LLAMA_MODEL:-local-model}
