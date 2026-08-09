@@ -4,6 +4,8 @@ scrape_configs:
     static_configs: [{targets: [otel-collector:8889]}]
   - job_name: llama-cpp
     metrics_path: /metrics
+    params:
+      model: [local-model]
     static_configs: [{targets: [llama-cpp:8080]}]
   - job_name: agent-api
     metrics_path: /metrics
