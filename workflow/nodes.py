@@ -24,8 +24,9 @@ def rootcause(s):
     for signature, finding in signatures.items():
         if signature in log_text: findings.append(finding)
     finding = "; ".join(findings) if findings else "No matching simulated-failure signature was found in the current log window."
+    evidence["observed_signatures"] = findings
     result = {"root_cause": finding}
-    llm = llama_api.summarize_result(evidence, s.get("question", ""))
+    llm = llama_api.summarize_result(evidence, s.get("question", ""), finding)
     result["llm_status"] = llm["status"]
     if llm.get("error"):
         result["llm_error"] = llm["error"]

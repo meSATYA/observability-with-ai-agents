@@ -44,11 +44,12 @@ def _compact_evidence(evidence, limit=6000):
     compact = {}
     for key, value in evidence.items():
         serialized = json.dumps(value, default=str)
-        compact[key] = serialized[-1200:] if len(serialized) > 1200 else value
+        # Keep the beginning for structured findings and the end for recent logs.
+        compact[key] = (serialized[:900] + " … " + serialized[-900:]) if len(serialized) > 1800 else value
     return json.dumps(compact, default=str)[:limit]
 
 
-def summarize_result(evidence, question=""):
+def summarize_result(evidence, question="", root_cause=""):
     started = time.perf_counter()
     if os.getenv("ENABLE_LLM_SUMMARY", "false").lower() != "true":
         logger.info("llama.cpp summary disabled by ENABLE_LLM_SUMMARY")
@@ -67,13 +68,27 @@ def summarize_result(evidence, question=""):
         return {"summary": None, "status": "factual_query"}
     try:
         timeout = float(os.getenv("LLAMA_TIMEOUT_SECONDS", "300"))
+        system_prompt = load_context(question) + (
+            " You are a constrained incident explainer. The deterministic root-cause finding "
+            "and observed signatures below are authoritative. Explain those exact findings; "
+            "do not replace them with a new primary cause inferred from service topology. "
+            "Clearly separate primary failures from downstream impact."
+        )
+        user_prompt = (
+            f"QUESTION:\n{question}\n\n"
+            f"DETERMINISTIC ROOT CAUSE (AUTHORITATIVE):\n{root_cause or 'Not available'}\n\n"
+            f"EVIDENCE:\n{_compact_evidence(evidence)}\n\n"
+            "Write a concise explanation with: (1) each observed failure signature, "
+            "(2) the likely mechanism for that signature, (3) downstream effects, "
+            "and (4) one verification step per signature. Do not claim evidence that is absent."
+        )
         response = requests.post(
             os.getenv("LLAMA_BASE_URL", "http://llama-cpp:8080/v1").rstrip("/") + "/chat/completions",
             json={
                 "model": os.environ["LLAMA_MODEL"],
                 "messages": [
-                    {"role": "system", "content": load_context(question)},
-                    {"role": "user", "content": _compact_evidence(evidence)},
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
                 ],
                 "temperature": 0.1,
                 "max_tokens": int(os.getenv("LLAMA_NUM_PREDICT", "120")),
@@ -94,6 +109,6 @@ def summarize_result(evidence, question=""):
         return {"summary": None, "status": "error", "error": str(exc)[:300]}
 
 
-def summarize(evidence, question=""):
+def summarize(evidence, question="", root_cause=""):
     """Backward-compatible summary-only helper for legacy graph code."""
-    return summarize_result(evidence, question).get("summary")
+    return summarize_result(evidence, question, root_cause).get("summary")
