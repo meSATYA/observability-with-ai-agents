@@ -102,7 +102,44 @@ def _similar_incident_ids(candidates, current_classes):
 
 def supervisor(s): return {"question": s.get("question", "Why is checkout failing?")}
 def metrics(s): return {"metrics": {"error_rate": prometheus_api.query('sum by (service, fault) (rate(checkout_stage_total{outcome="error"}[5m]))'), "latency": prometheus_api.query('histogram_quantile(0.95,sum by (le, service) (rate(checkout_stage_duration_seconds_bucket[5m])))')}}
-def logs(s): return {"logs": loki_api.query('{service_name=~"frontend|gateway|checkout|inventory|payment"} |= "error"')}
+
+def _limit_logs_per_error(logs, per_message=2):
+    counts = {}
+    limited = []
+
+    for stream in logs if isinstance(logs, list) else []:
+        values = []
+
+        for value in stream.get("values", []):
+            line = value[1] if len(value) > 1 else ""
+
+            try:
+                message = json.loads(line).get("message", str(line))
+            except (TypeError, ValueError):
+                message = str(line)
+
+            if counts.get(message, 0) >= per_message:
+                continue
+
+            counts[message] = counts.get(message, 0) + 1
+            values.append(value)
+
+        if values:
+            item = dict(stream)
+            item["values"] = values
+            limited.append(item)
+
+    return limited
+
+def logs(s):
+    raw_logs = loki_api.query(
+        '{service_name=~"frontend|gateway|checkout|inventory|payment"} |= "error"'
+    )
+    return {
+        "logs": _limit_logs_per_error(raw_logs, per_message=2)
+    }
+
+
 def traces(s): return {"traces": tempo_api.search(trace_ids=_trace_ids_from_logs(s.get("logs", [])))}
 
 
